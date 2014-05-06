@@ -17,21 +17,15 @@ var prq [SIZE]int
 var START time.Time = time.Now()
 
 func main() {
+	n := 0
 	idone := make(chan bool)
-	done1 := make(chan bool)
-	done2 := make(chan bool)
-	done3 := make(chan bool)
+	done := make(chan bool)
 	go insertstuff(idone)
-	go servicerequests(0, done1)
-	go servicerequests(1, done2)
-	go servicerequests(2, done3)
-	for i := 0; i < 4; i++ {
-		select {
-		case <-idone:
-		case <-done1:
-		case <-done2:
-		case <-done3:
-		}
+	go servicerequests(n++, done, idone)
+	go servicerequests(n++, done, idone)
+	go servicerequests(n++, done, idone)
+	for i := 0; i < n; i++ {
+		<-done
 	}
 	sum := 0
 	for _, v := range prq {
@@ -55,10 +49,10 @@ func insertstuff(done chan<- bool) {
 		}
 		time.Sleep(time.Duration(rand.Float32()*float32(sleepdur))) // sleep 0 to 1 units of duration
 	}
-	done <- true
+	close(done)
 }
 
-func servicerequests(id int, done chan<- bool) {
+func servicerequests(id int, done chan<- bool, waitfor <-chan bool) {
 	up := true
 	for i := 0; time.Since(START) < testdur; {
 		for mtx.Lock(); prq[i] > 0; {
@@ -80,6 +74,7 @@ func servicerequests(id int, done chan<- bool) {
 			}
 		}
 	}
+	<-waitfor
 	done <- true
 }
 
